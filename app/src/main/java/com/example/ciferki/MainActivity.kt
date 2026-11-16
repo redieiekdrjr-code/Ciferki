@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -70,7 +71,7 @@ fun Ciferki() {
     LaunchedEffect(Unit) {
         val saved = context.getSharedPreferences("ciferki_records", 0)
             .getString("inbox", "") ?: ""
-        if (saved.isNotBlank()) recordMessages.addAll(saved.split("\\n").filter { it.isNotBlank() })
+        if (saved.isNotBlank()) recordMessages.addAll(saved.split("\n").filter { it.isNotBlank() })
     }
     fun shareRecord() {
         val text = "ЦИФЫРКИ — мой рекорд: $best очков! Сможешь побить?\n#CiferkiRecord"
@@ -85,7 +86,7 @@ fun Ciferki() {
         if (value.isNotEmpty()) {
             recordMessages.add(0, value)
             context.getSharedPreferences("ciferki_records", 0).edit()
-                .putString("inbox", recordMessages.joinToString("\\n")).apply()
+                .putString("inbox", recordMessages.joinToString("\n")).apply()
             receivedRecord = ""
         }
     }
@@ -173,7 +174,7 @@ fun Ciferki() {
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            itemsIndexed(recordMessages) { _, item ->
+                            lazyItemsIndexed(recordMessages) { _, item ->
                                 Text(item, modifier = Modifier.fillMaxWidth()
                                     .background(Color.White, RoundedCornerShape(12.dp))
                                     .padding(12.dp), color = ink)
