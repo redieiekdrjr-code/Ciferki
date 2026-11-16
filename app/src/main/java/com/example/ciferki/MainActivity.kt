@@ -1,6 +1,7 @@
 package com.example.ciferki
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,9 +47,9 @@ private data class LevelInfo(
 )
 
 private fun getLevelInfo(level: Int): LevelInfo = when (level) {
-    in 1..3 -> LevelInfo(10, 5, 25, 40 + level * 10, "ЛЁГКАЯ")
-    in 4..6 -> LevelInfo(9, 6, 30, 70 + level * 10, "СРЕДНЯЯ")
-    else -> LevelInfo(8, 7, 35, 100 + level * 10, "СЛОЖНАЯ")
+    in 1..3 -> LevelInfo(10, 5, 20, 25 + level * 5, "ЛЁГКАЯ")
+    in 4..6 -> LevelInfo(10, 5, 24, 35 + level * 5, "ЛЁГКАЯ+")
+    else -> LevelInfo(9, 6, 28, 45 + level * 5, "ОБЫЧНАЯ")
 }
 
 @Composable
@@ -61,7 +63,32 @@ fun Ciferki() {
     var selected by remember { mutableStateOf<Int?>(null) }
     var message by remember { mutableStateOf("Найди одинаковые цифры или сумму 10") }
     var completed by remember { mutableStateOf(false) }
-    var numbers by remember { mutableStateOf(List(25) { Random.nextInt(1, 10) }) }
+    var numbers by remember { mutableStateOf(List(20) { Random.nextInt(1, 10) }) }
+    val context = LocalContext.current
+    var receivedRecord by remember { mutableStateOf("") }
+    val recordMessages = remember { mutableStateListOf<String>() }
+    LaunchedEffect(Unit) {
+        val saved = context.getSharedPreferences("ciferki_records", 0)
+            .getString("inbox", "") ?: ""
+        if (saved.isNotBlank()) recordMessages.addAll(saved.split("\\n").filter { it.isNotBlank() })
+    }
+    fun shareRecord() {
+        val text = "ЦИФЫРКИ — мой рекорд: $best очков! Сможешь побить?\n#CiferkiRecord"
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        context.startActivity(Intent.createChooser(intent, "Отправить рекорд"))
+    }
+    fun saveReceivedRecord() {
+        val value = receivedRecord.trim()
+        if (value.isNotEmpty()) {
+            recordMessages.add(0, value)
+            context.getSharedPreferences("ciferki_records", 0).edit()
+                .putString("inbox", recordMessages.joinToString("\\n")).apply()
+            receivedRecord = ""
+        }
+    }
 
     fun beginLevel(number: Int) {
         level = number
@@ -98,7 +125,7 @@ fun Ciferki() {
                         Button(
                             onClick = {
                                 mode = 0; score = 0; selected = null; completed = false
-                                numbers = List(25) { Random.nextInt(1, 10) }
+                                numbers = List(20) { Random.nextInt(1, 10) }
                                 message = "Найди одинаковые цифры или сумму 10"
                                 page = 1
                             },
@@ -108,6 +135,50 @@ fun Ciferki() {
                             onClick = { page = 2 },
                             modifier = Modifier.fillMaxWidth().height(58.dp)
                         ) { Text("🗺️  ВЫБОР УРОВНЯ", fontSize = 18.sp) }
+                        OutlinedButton(
+                            onClick = { page = 3 },
+                            modifier = Modifier.fillMaxWidth().height(52.dp)
+                        ) { Text("💬  ОБМЕН РЕКОРДАМИ", fontSize = 16.sp) }
+                    }
+                }
+                3 -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("‹", fontSize = 34.sp, color = ink,
+                            modifier = Modifier.clickable { page = 0 }.padding(end = 14.dp))
+                        Text("ОБМЕН РЕКОРДАМИ", fontSize = 25.sp, fontWeight = FontWeight.Black, color = ink)
+                    }
+                    Text("Отправь свой результат друзьям через любой мессенджер. Их ответы можно сохранить здесь.",
+                        color = Color.DarkGray, fontSize = 13.sp)
+                    Button(onClick = { shareRecord() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("📤  ОТПРАВИТЬ МОЙ РЕКОРД: $best")
+                    }
+                    OutlinedTextField(
+                        value = receivedRecord,
+                        onValueChange = { receivedRecord = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Вставь сообщение или рекорд друга") },
+                        placeholder = { Text("Например: Мой рекорд — 250 очков!") },
+                        minLines = 2,
+                        maxLines = 3
+                    )
+                    Button(onClick = { saveReceivedRecord() },
+                        enabled = receivedRecord.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth()) { Text("СОХРАНИТЬ ВХОДЯЩЕЕ СООБЩЕНИЕ") }
+                    Text("ВХОДЯЩИЕ РЕКОРДЫ", fontWeight = FontWeight.Bold, color = ink)
+                    if (recordMessages.isEmpty()) {
+                        Text("Пока сообщений нет. Попроси друга отправить тебе свой рекорд.",
+                            color = Color.Gray)
+                    } else {
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            itemsIndexed(recordMessages) { _, item ->
+                                Text(item, modifier = Modifier.fillMaxWidth()
+                                    .background(Color.White, RoundedCornerShape(12.dp))
+                                    .padding(12.dp), color = ink)
+                            }
+                        }
                     }
                 }
                 2 -> Column(Modifier.fillMaxSize()) {
@@ -147,7 +218,7 @@ fun Ciferki() {
                 }
                 else -> {
                     val info = if (mode == 1) getLevelInfo(level)
-                        else LevelInfo(10, 5, 25, Int.MAX_VALUE, "КЛАССИКА")
+                        else LevelInfo(10, 5, 20, Int.MAX_VALUE, "КЛАССИКА")
                     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                         Column(Modifier.weight(1f).fillMaxHeight()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
