@@ -126,8 +126,7 @@ fun Ciferki() {
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(10) { index ->
-                            val number = index + 1
+                        itemsIndexed((1..10).toList()) { _, number ->
                             val info = getLevelInfo(number)
                             val isOpen = number <= unlocked
                             Column(
